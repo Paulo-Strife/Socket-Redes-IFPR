@@ -1,4 +1,5 @@
 #define _POSIX_C_SOURCE 200809L
+
 #include <string.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -9,20 +10,35 @@
 #define PORT 8080
 #define BUFFER_LEN 2048
 
-int main () {
-    int server_fd, client_fd;
+int main() {
 
-    struct sockaddr_in address;
+    /* Socket do servidor */
+    int server_fd;
 
-    int addrlen = sizeof(address);
+    /* Estrutura do servidor */
+    struct sockaddr_in server_addr;
 
-    char buffer [BUFFER_LEN];
+    /* Estrutura do cliente
+       (será preenchida automaticamente pelo recvfrom()) */
+    struct sockaddr_in client_addr;
 
-    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        perror("Erro ao criar o socket, tente novamente");
+    socklen_t client_len = sizeof(client_addr);
+
+    char buffer[BUFFER_LEN];
+
+    /*
+     * SOCK_DGRAM = UDP
+     * SOCK_STREAM = TCP
+     */
+    if ((server_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        perror("Erro ao criar socket");
         exit(EXIT_FAILURE);
     }
 
+    /*
+     * Permite reutilizar a porta sem esperar o sistema
+     * liberar completamente após o encerramento.
+     */
     int opt = 1;
 
     setsockopt(
@@ -33,55 +49,125 @@ int main () {
         sizeof(opt)
     );
 
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(PORT);
+    /*
+     * Configuração do servidor
+     */
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = INADDR_ANY;
+    server_addr.sin_port = htons(PORT);
 
-    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
+    /*
+     * Associa o socket à porta.
+     */
+    if (bind(server_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
         perror("Erro no bind");
         exit(EXIT_FAILURE);
     }
 
-    if (listen(server_fd, 3) < 0) {
-        perror("Erro no listen");
-        exit(EXIT_FAILURE);
-    }
+    printf(
+        "Servidor UDP de horário iniciado na porta %d\n",
+        PORT
+    );
 
-    printf("Server para responder ao tempo iniciado, porta%d\n", PORT);
-
+    /*
+     * Como UDP não cria conexões,
+     * ficamos apenas esperando datagramas.
+     */
     while (1) {
-        client_fd = accept(server_fd, (struct sockaddr *)&address, (socklen_t *)&addrlen);
-
-        if (client_fd < 0) {
-            continue;
-        }
 
         memset(buffer, 0, BUFFER_LEN);
 
-        read(client_fd, buffer, sizeof(buffer));
+        /*
+         * Recebe mensagem do cliente.
+         *
+         * recvfrom() também identifica
+         * quem enviou a mensagem.
+         */
+        int bytes_recebidos =
+            recvfrom(
+                server_fd,
+                buffer,
+                BUFFER_LEN - 1,
+                0,
+                (struct sockaddr *)&client_addr,
+                &client_len
+            );
 
-        printf("\nMensagem recebida!%s\nserver", buffer);
+        if (bytes_recebidos < 0) {
+            perror("Erro ao receber mensagem");
+            continue;
+        }
 
+        buffer[bytes_recebidos] = '\0';
+
+        printf(
+            "\nMensagem recebida: %s\n",
+            buffer
+        );
+
+        /*
+         * Cliente solicitou horário.
+         */
         if (strcmp(buffer, "TIME") == 0) {
+
             struct timespec ts;
 
-            clock_gettime(CLOCK_REALTIME, &ts);
+            /*
+             * Obtém horário atual do sistema.
+             */
+            clock_gettime(
+                CLOCK_REALTIME,
+                &ts
+            );
 
             char response[BUFFER_LEN];
 
-            snprintf(response, sizeof(response), "%ld %ld", ts.tv_sec, ts.tv_nsec);
+            /*
+             * Formato:
+             * segundos nanossegundos
+             */
+            snprintf(
+                response,
+                sizeof(response),
+                "%ld %ld",
+                ts.tv_sec,
+                ts.tv_nsec
+            );
 
-            printf("Enviando horário: %s\n", response);
+            printf(
+                "Enviando horário: %s\n",
+                response
+            );
 
-            send(client_fd, response, strlen(response), 0);
-        } else {
-            char erro[] = "comando invalido";
-
-            send(client_fd, erro, strlen(erro), 0);
+            /*
+             * Responde diretamente ao cliente
+             * que enviou a requisição.
+             */
+            sendto(
+                server_fd,
+                response,
+                strlen(response),
+                0,
+                (struct sockaddr *)&client_addr,
+                client_len
+            );
         }
-        close(client_fd);
+        else {
+
+            char erro[] = "COMANDO_INVALIDO";
+
+            sendto(
+                server_fd,
+                erro,
+                strlen(erro),
+                0,
+                (struct sockaddr *)&client_addr,
+                client_len
+            );
+        }
     }
-    close(client_fd);
+
+    close(server_fd);
 
     return 0;
 }

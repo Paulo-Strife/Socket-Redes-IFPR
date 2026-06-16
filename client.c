@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <arpa/inet.h>
+#include <sys/time.h>
 
 #define PORT 8080
 #define BUFFER_LEN 2048
@@ -15,33 +16,44 @@ int main () {
     struct sockaddr_in server_addr;
     struct timespec inicio;
     struct timespec fim;
+    struct timeval tv;
 
     char buffer[BUFFER_LEN];
 
-    if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         perror("Erro ao criar o socket!");
         exit(EXIT_FAILURE);
     }
 
+    tv.tv_sec = 5;
+    tv.tv_usec = 0;
+
+    setsockopt(
+        sockfd,
+        SOL_SOCKET,
+        SO_RCVTIMEO,
+        &tv,
+        sizeof(tv)
+    );
+
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(PORT);
 
-    inet_pton(AF_INET, "127.0.0.1", &server_addr.sin_addr);
-
-    if (connect(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-        perror("Não foi possível estabelecer uma conexão!");
+    if (inet_pton(AF_INET, "127.0.0.1", &server_addr.sin_addr) <= 0) {
+        perror("IP Invalido");
         exit(EXIT_FAILURE);
-    }
+    };
 
     char request[] = "TIME";
 
     clock_gettime(CLOCK_MONOTONIC, &inicio);
 
-    send(sockfd, request, strlen(request), 0);
-    int bytes_lidos = read(sockfd, buffer, BUFFER_LEN - 1);
+    sendto(sockfd, request, strlen(request), 0, (struct sockaddr *)&server_addr, sizeof(server_addr));
+    int bytes_lidos = recvfrom(sockfd, buffer, BUFFER_LEN - 1, 0, NULL, NULL);
 
     if (bytes_lidos < 0){
         perror("Erro ao receber resposta");
+        close(sockfd);
         exit(EXIT_FAILURE);
     }
 
@@ -49,7 +61,7 @@ int main () {
 
     clock_gettime(CLOCK_MONOTONIC, &fim);
 
-    double rtt = (fim.tv_sec - inicio.tv_sec) + (fim.tv_nsec - inicio.tv_nsec) / 1000000000.0;
+    double rtt = (double)(fim.tv_sec - inicio.tv_sec) + (double)(fim.tv_nsec - inicio.tv_nsec) / 1000000000.0;
     double latencia = rtt / 2.0;
 
     printf("Horário recebido: %s\n", buffer);
