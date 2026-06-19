@@ -15,16 +15,16 @@ int main() {
     /* Socket do servidor */
     int server_fd;
 
-    /* Estrutura do servidor */
+    /* Estrutura do servidor ip e porta*/
     struct sockaddr_in server_addr;
 
-    /* Estrutura do cliente */
+    /* Estrutura do cliente armazena o cliente e o remetende*/
     struct sockaddr_in client_addr;
 
     // sabendo o tamanho do client_addr
     socklen_t client_len = sizeof(client_addr);
 
-    // Criando buffer
+    // Criando buffer para armazenar mensagens recebidas via socket
     char buffer[BUFFER_LEN];
 
     /*
@@ -76,7 +76,7 @@ int main() {
         memset(buffer, 0, BUFFER_LEN);
 
         /*
-         Recebe mensagem do cliente e identifica quem enviou a mensagem
+         Recebe mensagem do cliente e o recvfrom() identifica quem enviou a mensagem, mostrando seu endereço de origem
          */
         int bytes_recebidos =
             recvfrom(
@@ -101,7 +101,7 @@ int main() {
         );
 
         /*
-         * Cliente solicitou horário.
+         * Cliente solicitou horário. Nisso utilizando a mensagem TIME para fazer a sincronização do horário
          */
         if (strcmp(buffer, "TIME") == 0) {
 
@@ -120,6 +120,7 @@ int main() {
             /*
              * Formato:
              * segundos nanossegundos
+             * timestamp utilizado pelo algoritmo de cristian
              */
             snprintf(
                 response,
@@ -149,7 +150,7 @@ int main() {
         }
         else {
 
-            // retorna o erro ocorrido ao cliente.
+            // retorna o erro ocorrido ao cliente caso seja enviado um comando errado
 
             char erro[] = "COMANDO_INVALIDO";
 
