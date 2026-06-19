@@ -21,8 +21,10 @@ int main() {
     /* Estrutura do cliente */
     struct sockaddr_in client_addr;
 
+    // sabendo o tamanho do client_addr
     socklen_t client_len = sizeof(client_addr);
 
+    // Criando buffer
     char buffer[BUFFER_LEN];
 
     /*
