@@ -12,14 +12,17 @@
 #define BUFFER_LEN 2048
 
 int main () {
-    // criando socket
+    // descritor do socket do UDP
     int sockfd;
-
+    // Armazena o IP e a porta do servidor
     struct sockaddr_in server_addr;
+    // medição do tempo inicial e do tempo final
     struct timespec inicio;
     struct timespec fim;
+    // para configurar timeout
     struct timeval tv;
 
+    // armazena as mensagens do servidor
     char buffer[BUFFER_LEN];
     // AF_INET = IPV4 e SOCK_DGRAM = UDP
     if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
@@ -30,6 +33,7 @@ int main () {
     tv.tv_sec = 5;
     tv.tv_usec = 0;
 
+    // configura timeout de recepção do socket UDP
     setsockopt(
         sockfd,
         SOL_SOCKET,
@@ -37,10 +41,11 @@ int main () {
         &tv,
         sizeof(tv)
     );
-
+    // define como endereçamento IPV4
     server_addr.sin_family = AF_INET;
+    // define a porta do servidor para formato de rede
     server_addr.sin_port = htons(PORT);
-
+    // converte o ip local para binário
     if (inet_pton(AF_INET, "127.0.0.1", &server_addr.sin_addr) <= 0) {
         perror("IP Invalido");
         exit(EXIT_FAILURE);
