@@ -18,8 +18,7 @@ int main() {
     /* Estrutura do servidor */
     struct sockaddr_in server_addr;
 
-    /* Estrutura do cliente
-       (será preenchida automaticamente pelo recvfrom()) */
+    /* Estrutura do cliente */
     struct sockaddr_in client_addr;
 
     socklen_t client_len = sizeof(client_addr);
@@ -69,19 +68,13 @@ int main() {
         PORT
     );
 
-    /*
-     * Como UDP não cria conexões,
-     * ficamos apenas esperando datagramas.
-     */
+    // Como UDP Não cria conexões, enviamos os datagramas para qualquer um
     while (1) {
 
         memset(buffer, 0, BUFFER_LEN);
 
         /*
-         * Recebe mensagem do cliente.
-         *
-         * recvfrom() também identifica
-         * quem enviou a mensagem.
+         Recebe mensagem do cliente e identifica quem enviou a mensagem
          */
         int bytes_recebidos =
             recvfrom(
@@ -154,6 +147,8 @@ int main() {
         }
         else {
 
+            // retorna o erro ocorrido ao cliente.
+
             char erro[] = "COMANDO_INVALIDO";
 
             sendto(
@@ -166,6 +161,8 @@ int main() {
             );
         }
     }
+
+    // Encerra o servidor.
 
     close(server_fd);
 
